@@ -1,0 +1,44 @@
+This repo serves as the launching point for my cluster. My general plan is below for all three but this repo will focus on automating deployment on just one M90Q. 
+
+- 1 control plane and 1 worker nodes on each M90Q
+- Switch to Blocky for DNS with external DB
+	- BlockyUI
+	- Reverse proxy resolves to local if request comes from any local subnet or to tailnet if it comes from tailnet devices
+		- group local subnets
+		- group tailscale subnets
+		- customDNS for both groups
+	- Unbound
+- Replication:
+	- Most stuff 3 replicas with external DB (CloudNative-PG/rqlite)
+	- Stateful stuff no replicas
+		- Prometheus
+		- Home Assistant
+		- Continuwuity
+		- Pingvin share
+		- Bytestash
+- Proxmox Ceph + ceph-csi
+- Ansible to setup each node
+	- Bond both 10g (LACP with MTU 9000)
+		- Bridge attached to bond0 with:
+			- VLAN 1 - Ceph Private (MTU 9000)
+			- VLAN 2 - Ceph Public (MTU 9000)
+			- VLAN 3 - VM Traffic (MTU default)
+		- Set Proxmox to use bonded 10g on vlan 3
+			- Ansible check if ifupdown2 is installed and installs if not
+			- Ansible copies new interfaces file and rollback script to device
+				- Rollback script adds .bak to old interfaces and removes .new from new interfaces
+				- Then hot reloads network settings
+				- If rollsbacks, writes FAILED to /tmp/rollback-script 
+			- Ansible runs rollback script
+			- When Tailscale connection comes back, reads /tmp/rollback-script and if FAILED it quits
+	- Each node should first be updated and rebooted
+	- Install tailscale, btop, bat, neovim
+	- Start tailscale and enable SSH
+	- Switch to tailscale SSH and disable normal SSH
+- Ansible to then setup proxmox cluster and ceph
+- Terraform to create talos VMs (image factory - tailscale + qemu guest agent installed)
+	- Pass through vmbr0 with vlan 2 and 3
+	- Talos eth0 (vmbr0.3) with static IP set and gateway and eth1 (vmbr0.2) with static IP set
+	- 3 control planes - one on each node
+	- 3 workers - one on each node
+	- VIP setup and Flux installed
