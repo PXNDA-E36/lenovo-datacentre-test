@@ -1,0 +1,26 @@
+- name: Load SOPS encrypted var
+  community.sops.load_vars:
+    file: ../vars/tailscale-secrets.sops.yml
+
+- name: Check if Tailscale is installed
+  ansible.builtin.stat:
+    path: /usr/bin/tailscale
+  register: tailscale_check
+
+- name: Install Tailscale
+  when: not tailscale_check.stat.exists
+  block:
+    - name: Grab Tailscale install script
+      ansible.builtin.get_url:
+        url: https://tailscale.com/install.sh
+        dest: /tmp/install_tailscale.sh
+        mode: '0755'
+
+    - name: Run Tailscale install script
+      ansible.builtin.command:
+        cmd: /tmp/install_tailscale.sh
+        creates: /usr/bin/tailscale
+
+- name: Tailscale up
+  ansible.builtin.command:
+    cmd: "tailscale up --auth-key={{ tailscale_auth_key }} --ssh"

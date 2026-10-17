@@ -1,0 +1,3 @@
+creation_rules:
+  - path_regex: ^ansible/.*\.sops\.ya?ml$
+    age: "age1ars8mwk976ptrkp4nhdaj40kv6t46hkende6fxg9m2nearshpa2q50wdhv"
