@@ -6,8 +6,9 @@
   ansible.builtin.stat:
     path: /usr/bin/tailscale
   register: tailscale_check
+  changed_when: false
 
-- name: Install Tailscale
+- name: Install and start Tailscale
   when: not tailscale_check.stat.exists
   block:
     - name: Grab Tailscale install script
@@ -21,6 +22,6 @@
         cmd: /tmp/install_tailscale.sh
         creates: /usr/bin/tailscale
 
-- name: Tailscale up
-  ansible.builtin.command:
-    cmd: "tailscale up --auth-key={{ tailscale_auth_key }} --ssh"
+    - name: Tailscale up
+      ansible.builtin.command:
+        cmd: 'tailscale up --auth-key={{ tailscale_auth_key }} --ssh'

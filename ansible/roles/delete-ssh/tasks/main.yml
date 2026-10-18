@@ -1,20 +1,25 @@
 - name: Grab Tailscale status
   ansible.builtin.command: tailscale status --json
   register: tailscale_status_json
+  changed_when: false
+  failed_when: false
 
 - name: Check if Tailscale SSH is active
-  ansible.builtin.shell: tailscale debug prefs | grep -q '"RunSSH":\s*true'
-  register: tailscale_ssh_status
+  ansible.builtin.command: tailscale debug prefs
+  register: tailscale_prefs_json
+  changed_when: false
+  failed_when: false
 
 - name: Disable SSH if Tailscale is up
   when:
     - tailscale_status_json.rc == 0
     - (tailscale_status_json.stdout | from_json).BackendState | default('') == 'Running'
-    - tailscale_ssh_status.rc == 0
+    - tailscale_prefs_json.rc == 0
+    - (ts_prefs_json.stdout | from_json).RunSSH | default(false) | bool
   block:
     - name: Extract Tailscale hostname
       ansible.builtin.set_fact:
-        tailscale_hostname: "{{ (tailscale_status_json.stdout | from_json).Self.HostName }}"
+        tailscale_hostname: '{{ (tailscale_status_json.stdout | from_json).Self.HostName }}'
 
     - name: Update local inventory with Tailscale hostname
       ansible.builtin.lineinfile:
@@ -26,13 +31,13 @@
 
     - name: Switch Ansible to Tailscale
       ansible.builtin.set_fact:
-        ansible_host: "{{ tailscale_hostname }}"
+        ansible_host: '{{ tailscale_hostname }}'
 
     - name: Turn off SSH
       ansible.builtin.systemd_service:
         name: ssh
         enabled: false
-        state: "stopped"
+        state: 'stopped'
 
-- name: Restart Ansible
-  ansible.builtin.meta: "reset_connection"
+    - name: Restart Ansible
+      ansible.builtin.include_tasks: ./restart-ansible.yml
