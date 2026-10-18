@@ -1,0 +1,37 @@
+- name: Install misc tools
+  ansible.builtin.apt:
+    name: ['bat', 'neovim', 'btop']
+    state: present
+
+- name: Uninstall unneeded tools
+  ansible.builtin.apt:
+    name: ['vim']
+    state: absent
+
+- name: Alias batcat as cat
+  ansible.builtin.lineinfile:
+    path: ~/.bashrc
+    regexp: '^alias cat='
+    line: "alias cat='batcat'"
+    state: present
+    create: true
+    mode: '0644'
+
+- name: Check if Ghostty terminfo is on remote
+  ansible.builtin.command: 'infocmp -x xterm-ghostty'
+  register: infocmp_remote_result
+  changed_when: false
+  failed_when: false
+
+- name: Setup Ghostty's terminfo
+  when: infocmp_remote_result.rc != 0
+  block:
+    - name: Read local terminfo
+      ansible.builtin.command: 'infocmp -x xterm-ghostty'
+      delegate_to: localhost
+      register: infocmp_result
+
+    - name: Save terminfo
+      ansible.builtin.command:
+        cmd: 'tic -x -'
+        stdin: '{{ infocmp_result.stdout }}'
